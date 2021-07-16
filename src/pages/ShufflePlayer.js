@@ -9,12 +9,12 @@ import VideoPool from '../components/VideoPool';
 import CurrentVideoInfo from '../components/CurrentVideoInfo';
 
 function ShufflePlayer(props) {
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded,        setIsLoaded]        = useState(false);
   const [loadedPlaylists, setLoadedPlaylists] = useState([]);
-  const [loadedVideos, setLoadedVideos] = useState([]);
-  const [currentVideo, setCurrentVideo] = useState({});
-  const [playedVideos, setPlayedVideos] = useState([]);
-  const [repeatVideo, setRepeatVideo] = useState(false);
+  const [loadedVideos,    setLoadedVideos]    = useState([]);
+  const [currentVideo,    setCurrentVideo]    = useState({});
+  const [playedVideos,    setPlayedVideos]    = useState([]);
+  const [repeatVideo,     setRepeatVideo]     = useState(false);
 
   function loadPlaylists() {
     axios.get(AppConstants.APIEndpoints.TRACKED_PLAYLISTS)
@@ -31,14 +31,30 @@ function ShufflePlayer(props) {
       .map(p => p.playlist_id);
     const requestBody = { playlist_ids: playlistIdsToLoad };
     axios.post(AppConstants.APIEndpoints.SHUFFLE, requestBody)
-    .then(response => setLoadedVideos(response.data.songs))
+    .then(response => {
+      setLoadedVideos(response.data.songs);
+      if ('mediaSession' in navigator) {
+        console.log("Was able to get mediaSession from navigator - setting up actionHandlers now")
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: "The title is always Hebron",
+          artwork: [],
+          playbackState: 'playing'
+        });
+        navigator.mediaSession.setActionHandler('seekbackward', function() { console.log("seekbackward called") });
+        navigator.mediaSession.setActionHandler('seekforward', function() { console.log("seekforward called") });
+        navigator.mediaSession.setActionHandler('seekto', function() { console.log("seekto called") });
+        navigator.mediaSession.setActionHandler("play", function() { console.log("Trying to play"); });
+        navigator.mediaSession.setActionHandler("pause", function() { console.log("Trying to pause"); });
+        navigator.mediaSession.setActionHandler('previoustrack', function() { console.log("Trying to pick previous video from mediaSession API"); pickPreviousVideo() });
+        navigator.mediaSession.setActionHandler('nexttrack', function() { console.log("Trying to pick next video from mediaSession API"); pickNextVideo() });
+      }
+    })
     .catch(error => console.log(`Couldn't retrieve playlist videos! ${error}`))
   }
 
   function togglePlaylistSelection(togglePlaylistId) {
     const toggledOnePlaylist = loadedPlaylists.map(p => { 
-      return p.playlist_id === togglePlaylistId ? 
-        { ...p, is_default: !p.is_default } : p});
+      return p.playlist_id === togglePlaylistId ? { ...p, is_default: !p.is_default } : p});
     setLoadedPlaylists(toggledOnePlaylist);
   }
 
@@ -77,7 +93,6 @@ function ShufflePlayer(props) {
   useEffect(loadVideos, []);
   useEffect(loadPlaylists, []);
   useEffect(pickNextVideo, [loadedVideos]);
-
 
   return (
     <div>
